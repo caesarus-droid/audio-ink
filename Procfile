@@ -1,0 +1,1 @@
+web: gunicorn --workers ${WORKERS:-4} --timeout ${TIMEOUT:-120} --max-requests ${MAX_REQUESTS:-1000} --max-requests-jitter ${MAX_REQUESTS_JITTER:-50} "run:app" 

@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AudioInk - Audio Transcription</title>
+    <!-- Material UI CSS -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1976d2;
+            --secondary-color: #f50057;
+            --background-color: #f5f5f5;
+            --text-color: #333;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        .header p {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e0e0e0;
+            z-index: 1;
+        }
+
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            border-color: var(--primary-color);
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .step.completed {
+            border-color: var(--success-color);
+            background: var(--success-color);
+            color: white;
+        }
+
+        .step-label {
+            position: absolute;
+            top: 45px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .step-content {
+            display: none;
+        }
+
+        .step-content.active {
+            display: block;
+        }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(25, 118, 210, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(25, 118, 210, 0.1);
+        }
+
+        .material-icons {
+            font-size: 48px;
+            color: var(--primary-color);
+        }
+
+        .button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            margin: 0.5rem;
+        }
+
+        .button:hover {
+            background-color: #1565c0;
+        }
+
+        .button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .button.secondary {
+            background-color: #f5f5f5;
+            color: var(--text-color);
+        }
+
+        .button.secondary:hover {
+            background-color: #e0e0e0;
+        }
+
+        .progress-container {
+            margin: 2rem 0;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #666;
+        }
+
+        .result-area {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .result-area textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .device-info {
+            background: #e3f2fd;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .device-info .material-icons {
+            margin-right: 0.5rem;
+            font-size: 24px;
+        }
+
+        .error {
+            color: var(--secondary-color);
+            text-align: center;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .warning {
+            background: #fff3e0;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .warning .material-icons {
+            color: var(--warning-color);
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>AudioInk</h1>
+                <p>Upload your audio file to get an instant transcription</p>
+            </div>
+
+            {% if not gpu_available %}
+            <div class="warning">
+                <span class="material-icons">warning</span>
+                <div>
+                    <strong>Warning:</strong> No GPU detected. Transcription will be slower on CPU.
+                    For better performance, please ensure you have a CUDA-capable GPU installed.
+                </div>
+            </div>
+            {% else %}
+            <div class="device-info">
+                <span class="material-icons">memory</span>
+                <div>
+                    <strong>GPU Detected:</strong> Transcription will use GPU acceleration for faster processing.
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="step-indicator">
+                <div class="step active" id="step1">
+                    1
+                    <div class="step-label">Upload</div>
+                </div>
+                <div class="step" id="step2">
+                    2
+                    <div class="step-label">Process</div>
+                </div>
+                <div class="step" id="step3">
+                    3
+                    <div class="step-label">Result</div>
+                </div>
+            </div>
+
+            <div class="step-content active" id="step1-content">
+                <div class="upload-area" id="dropZone">
+                    <span class="material-icons">cloud_upload</span>
+                    <h2>Drag & Drop your audio file here</h2>
+                    <p>or</p>
+                    <input type="file" id="fileInput" accept=".mp3,.wav,.ogg,.mp4,.m4a,.mpeg,.webm" style="display: none;">
+                    <button class="button" onclick="document.getElementById('fileInput').click()">Choose File</button>
+                </div>
+                <div class="error" id="error"></div>
+            </div>
+
+            <div class="step-content" id="step2-content">
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Processing your audio...</div>
+                </div>
+            </div>
+
+            <div class="step-content" id="step3-content">
+                <div class="result-area" id="resultArea">
+                    <h3>Transcription Result</h3>
+                    <div class="device-info" id="processingInfo">
+                        <span class="material-icons">info</span>
+                        <div id="processingDetails"></div>
+                    </div>
+                    <textarea id="transcript" readonly></textarea>
+                    <div style="text-align: center; margin-top: 1rem;">
+                        <button class="button" onclick="copyTranscript()">Copy Text</button>
+                        <button class="button secondary" onclick="startNew()">Start New</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const resultArea = document.getElementById('resultArea');
+        const transcript = document.getElementById('transcript');
+        const error = document.getElementById('error');
+        const processingDetails = document.getElementById('processingDetails');
+        const steps = document.querySelectorAll('.step');
+        const stepContents = document.querySelectorAll('.step-content');
+
+        let currentStep = 1;
+        let processingInterval;
+
+        function updateStep(step) {
+            currentStep = step;
+            steps.forEach((s, i) => {
+                if (i + 1 < step) {
+                    s.classList.add('completed');
+                    s.classList.remove('active');
+                } else if (i + 1 === step) {
+                    s.classList.add('active');
+                    s.classList.remove('completed');
+                } else {
+                    s.classList.remove('active', 'completed');
+                }
+            });
+
+            stepContents.forEach((content, i) => {
+                if (i + 1 === step) {
+                    content.classList.add('active');
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+        }
+
+        function simulateProgress() {
+            let progress = 0;
+            processingInterval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress >= 90) {
+                    clearInterval(processingInterval);
+                }
+                progressFill.style.width = `${progress}%`;
+            }, 500);
+        }
+
+        function handleFiles(e) {
+            const files = e.target.files;
+            if (files.length === 0) return;
+
+            const file = files[0];
+            if (!isValidFileType(file)) {
+                showError('Please upload a valid audio file (MP3, WAV, OGG, MP4, M4A, MPEG, WEBM)');
+                return;
+            }
+
+            uploadFile(file);
+        }
+
+        function isValidFileType(file) {
+            const validTypes = [
+                'audio/mp3', 'audio/wav', 'audio/ogg', 'video/mp4', 
+                'audio/mp4', 'audio/mpeg', 'video/webm'
+            ];
+            return validTypes.includes(file.type);
+        }
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            updateStep(2);
+            progressContainer.style.display = 'block';
+            simulateProgress();
+
+            try {
+                // Upload file
+                const uploadResponse = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const uploadResult = await uploadResponse.json();
+                
+                if (uploadResult.error) {
+                    throw new Error(uploadResult.error);
+                }
+
+                // Process file
+                const processResponse = await fetch('/process', {
+                    method: 'POST'
+                });
+                const result = await processResponse.json();
+
+                clearInterval(processingInterval);
+                progressFill.style.width = '100%';
+                
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                // Show results
+                updateStep(3);
+                resultArea.style.display = 'block';
+                transcript.value = result.text;
+                
+                const deviceType = result.device === 'cuda' ? 'GPU' : 'CPU';
+                processingDetails.innerHTML = `
+                    Processed on ${deviceType} in ${result.processing_time.toFixed(2)} seconds
+                `;
+                
+            } catch (err) {
+                clearInterval(processingInterval);
+                showError(err.message);
+                updateStep(1);
+            }
+        }
+
+        function copyTranscript() {
+            transcript.select();
+            document.execCommand('copy');
+            alert('Text copied to clipboard!');
+        }
+
+        function startNew() {
+            updateStep(1);
+            resultArea.style.display = 'none';
+            progressContainer.style.display = 'none';
+            progressFill.style.width = '0%';
+            fileInput.value = '';
+        }
+
+        function showError(message) {
+            error.textContent = message;
+            error.style.display = 'block';
+            setTimeout(() => {
+                error.style.display = 'none';
+            }, 5000);
+        }
+
+        // Event listeners
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        dropZone.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFiles, false);
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles({ target: { files: files } });
+        }
+    </script>
+</body>
+</html> 
