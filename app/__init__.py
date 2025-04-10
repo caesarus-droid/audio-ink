@@ -1,26 +1,24 @@
 from flask import Flask, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from config import config
+from .config import Config
 import os
 import torch
 
 db = SQLAlchemy()
 migrate = Migrate()
 
-def create_app(config_name='default'):
+def create_app(config_class=Config):
     app = Flask(__name__)
-    app.config.from_object(config[config_name])
+    app.config.from_object(config_class)
 
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
 
     # Register blueprints
-    from .api.transcription import api as transcription_api
-    from .api.youtube import youtube_api
-    app.register_blueprint(transcription_api, url_prefix='/api')
-    app.register_blueprint(youtube_api, url_prefix='/api')
+    from .routes import bp as main_bp
+    app.register_blueprint(main_bp)
 
     # Create necessary directories
     os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
