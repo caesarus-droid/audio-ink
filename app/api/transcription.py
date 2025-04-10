@@ -121,7 +121,7 @@ def transcribe():
             temp_path = temp_file.name
         
         # Get the model with appropriate device configuration
-        model = get_whisper_model(use_gpu)
+        model, device = load_model()
         if model is None:
             return jsonify({'error': 'Failed to load transcription model'}), 500
         
@@ -130,9 +130,13 @@ def transcribe():
         
         # Create transcription record
         transcription = Transcription(
-            filename=file.filename,
+            file_name=file.filename,
+            file_path=temp_path,
             text=result['text'],
-            created_at=datetime.utcnow()
+            status='completed',
+            processing_time=time.time() - time.time(),
+            device=device,
+            language=result.get('language', 'en')
         )
         db.session.add(transcription)
         db.session.commit()
@@ -156,19 +160,21 @@ def get_transcriptions():
     transcriptions = Transcription.query.order_by(Transcription.created_at.desc()).all()
     return jsonify([{
         'id': t.id,
-        'filename': t.filename,
+        'filename': t.file_name,
         'text': t.text,
-        'created_at': t.created_at.isoformat()
+        'status': t.status,
+        'created_at': t.created_at.isoformat() if t.created_at else None
     } for t in transcriptions])
 
-@api.route('/transcriptions/<int:id>', methods=['GET'])
+@api.route('/transcriptions/<id>', methods=['GET'])
 def get_transcription(id):
     transcription = Transcription.query.get_or_404(id)
     return jsonify({
         'id': transcription.id,
-        'filename': transcription.filename,
+        'filename': transcription.file_name,
         'text': transcription.text,
-        'created_at': transcription.created_at.isoformat()
+        'status': transcription.status,
+        'created_at': transcription.created_at.isoformat() if transcription.created_at else None
     })
 
 @api.route('/transcriptions', methods=['POST'])
@@ -258,24 +264,19 @@ def list_transcriptions():
     
     return jsonify([t.to_dict() for t in transcriptions])
 
-@api.route('/transcriptions/<transcription_id>/view')
-def view_transcription(transcription_id: str):
+@api.route('/transcriptions/<id>/view', methods=['GET'])
+def view_transcription(id):
     """View and edit a transcription."""
-    transcription = Transcription.find_by_id(current_app.config['STORAGE_PATH'], transcription_id)
-    if not transcription:
-        return jsonify({'error': 'Transcription not found'}), 404
-    
-    return render_template('transcript.html', transcription_id=transcription_id)
+    transcription = Transcription.query.get_or_404(id)
+    return render_template('transcript.html', transcription_id=id)
 
-@api.route('/transcriptions/<transcription_id>/download', methods=['POST'])
-def download_transcription(transcription_id: str):
+@api.route('/transcriptions/<id>/download', methods=['POST'])
+def download_transcription(id):
     """Download the edited transcription as a Word document."""
-    transcription = Transcription.find_by_id(current_app.config['STORAGE_PATH'], transcription_id)
-    if not transcription:
-        return jsonify({'error': 'Transcription not found'}), 404
+    transcription = Transcription.query.get_or_404(id)
     
     try:
-        content = request.json.get('content', '')
+        content = request.json.get('content', transcription.text)
         
         # Create a new Word document
         doc = docx.Document()
@@ -292,7 +293,7 @@ def download_transcription(transcription_id: str):
         
         return doc_stream.getvalue(), 200, {
             'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'Content-Disposition': f'attachment; filename=transcript_{transcription_id}.docx'
+            'Content-Disposition': f'attachment; filename=transcript_{id}.docx'
         }
     
     except Exception as e:
