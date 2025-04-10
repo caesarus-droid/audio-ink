@@ -7,7 +7,7 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-here')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql://postgres:2135@localhost/audioink_prod')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql://postgres:2135@localhost:5432/audioink_prod')
     UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
     STORAGE_PATH = os.getenv('STORAGE_PATH', 'data')
     MODEL_PATH = os.getenv('MODEL_PATH', 'models')
@@ -26,15 +26,15 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.getenv('DEV_DATABASE_URL', 'postgresql://postgres:2135@localhost/audioink_dev')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DEV_DATABASE_URL', 'postgresql://postgres:2135@localhost:5432/audioink_dev')
 
 class TestingConfig(Config):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = os.getenv('TEST_DATABASE_URL', 'postgresql://postgres:2135@localhost/audioink_test')
+    SQLALCHEMY_DATABASE_URI = os.getenv('TEST_DATABASE_URL', 'postgresql://postgres:2135@localhost:5432/audioink_test')
 
 class ProductionConfig(Config):
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql://postgres:2135@localhost/audioink_prod')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql://postgres:2135@localhost:5432/audioink_prod')
 
 config = {
     'development': DevelopmentConfig,
