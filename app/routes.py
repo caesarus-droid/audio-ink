@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 import os
 from .config import Config
@@ -27,8 +27,12 @@ def youtube():
 @bp.route('/history')
 @login_required
 def history():
-    transcriptions = Transcription.query.filter_by(user_id=current_user.id).all()
-    return render_template('history.html', transcriptions=transcriptions)
+    try:
+        transcriptions = Transcription.query.filter_by(user_id=current_user.id).all()
+        return render_template('history.html', transcriptions=transcriptions)
+    except Exception as e:
+        flash(f'Error loading history: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
 
 # API Routes
 @bp.route('/api/upload', methods=['POST'])
@@ -42,25 +46,38 @@ def upload_file():
         return jsonify({'error': 'No selected file'}), 400
     
     if file:
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(Config.UPLOAD_FOLDER, filename)
-        file.save(file_path)
-        
-        # Create transcription record
-        transcription = Transcription(
-            user_id=current_user.id,
-            filename=filename,
-            status='processing'
-        )
-        db.session.add(transcription)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'File uploaded successfully',
-            'filename': filename,
-            'transcription_id': transcription.id
-        }), 200
+        try:
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(Config.UPLOAD_FOLDER, filename)
+            file.save(file_path)
+            
+            # Create transcription record
+            transcription = Transcription(
+                user_id=current_user.id,
+                filename=filename,
+                status='processing'
+            )
+            db.session.add(transcription)
+            db.session.commit()
+            
+            return jsonify({
+                'message': 'File uploaded successfully',
+                'filename': filename,
+                'transcription_id': transcription.id
+            }), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 @bp.route('/api/health', methods=['GET'])
 def health_check():
-    return jsonify({'status': 'healthy'}), 200 
+    return jsonify({'status': 'healthy'}), 200
+
+# Error handlers
+@bp.app_errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@bp.app_errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('500.html'), 500 

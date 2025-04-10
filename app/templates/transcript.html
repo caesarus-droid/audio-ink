@@ -1,142 +1,86 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Transcript - AudioInk</title>
-    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.2/dist/quill.snow.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.2.96/css/materialdesignicons.min.css" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .editor-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        #editor {
-            height: 500px;
-            margin-bottom: 20px;
-        }
-        .button {
-            background-color: #1976d2;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .button:hover {
-            background-color: #1565c0;
-        }
-        .button.secondary {
-            background-color: #757575;
-        }
-        .button.secondary:hover {
-            background-color: #616161;
-        }
-        .button-group {
-            display: flex;
-            gap: 10px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Edit Transcript</h1>
-            <div class="button-group">
-                <button class="button secondary" onclick="window.location.href='/'">
-                    <i class="mdi mdi-arrow-left"></i>
-                    Back
-                </button>
-                <button class="button" onclick="downloadTranscript()">
-                    <i class="mdi mdi-download"></i>
-                    Download
-                </button>
-            </div>
-        </div>
-        <div class="editor-container">
-            <div id="editor"></div>
-        </div>
+{% extends "base.html" %}
+
+{% block title %}Edit Transcript - AudioInk{% endblock %}
+
+{% block head %}
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.2/dist/quill.snow.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.2.96/css/materialdesignicons.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="editor-container">
+    <div class="header">
+        <h2>Edit Transcript</h2>
+        <button class="button" onclick="saveTranscript()">
+            <span class="mdi mdi-content-save"></span>
+            Save
+        </button>
     </div>
+    <div id="editor"></div>
+</div>
+{% endblock %}
 
-    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.2/dist/quill.min.js"></script>
-    <script>
-        const quill = new Quill('#editor', {
-            theme: 'snow',
-            modules: {
-                toolbar: [
-                    [{ 'header': [1, 2, 3, false] }],
-                    ['bold', 'italic', 'underline', 'strike'],
-                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                    ['clean']
-                ]
-            }
-        });
+{% block additional_styles %}
+<style>
+    .editor-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
 
-        // Load the transcript from the server
-        window.addEventListener('load', async () => {
-            try {
-                const response = await fetch('/api/transcriptions/{{ transcription_id }}');
-                const data = await response.json();
-                quill.setContents(quill.clipboard.convert(data.text));
-            } catch (error) {
-                console.error('Error loading transcript:', error);
-                alert('Error loading transcript. Please try again.');
-            }
-        });
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
 
-        async function downloadTranscript() {
-            try {
-                const content = quill.root.innerHTML;
-                const response = await fetch('/api/transcriptions/{{ transcription_id }}/download', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ content })
-                });
+    #editor {
+        height: 500px;
+        margin-bottom: 20px;
+    }
 
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'transcript.docx';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    a.remove();
-                } else {
-                    throw new Error('Failed to download transcript');
-                }
-            } catch (error) {
-                console.error('Error downloading transcript:', error);
-                alert('Error downloading transcript. Please try again.');
-            }
+    .button {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .button:hover {
+        background-color: #1565c0;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.2/dist/quill.min.js"></script>
+<script>
+    const quill = new Quill('#editor', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                [{ 'header': [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                ['link', 'image'],
+                ['clean']
+            ]
         }
-    </script>
-</body>
-</html> 
+    });
+
+    function saveTranscript() {
+        const content = quill.root.innerHTML;
+        // Add your save logic here
+        console.log('Saving transcript:', content);
+    }
+</script>
+{% endblock %} 

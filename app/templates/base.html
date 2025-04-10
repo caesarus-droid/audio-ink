@@ -83,6 +83,27 @@
             padding: 0 2rem;
         }
 
+        /* Flash messages */
+        .flash-messages {
+            margin: 1rem 0;
+        }
+
+        .flash-message {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .flash-message.success {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .flash-message.error {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
         {% block additional_styles %}{% endblock %}
     </style>
     {% block head %}{% endblock %}
@@ -90,20 +111,32 @@
 <body>
     <nav class="navbar">
         <div class="nav-container">
-            <a href="/" class="nav-brand">
+            <a href="{{ url_for('main.index') }}" class="nav-brand">
                 <span class="material-icons">record_voice_over</span>
                 AudioInk
             </a>
             <div class="nav-links">
-                <a href="/" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Home</a>
-                <a href="/transcribe" class="nav-link {% if request.endpoint == 'transcribe' %}active{% endif %}">Transcribe</a>
-                <a href="/youtube" class="nav-link {% if request.endpoint == 'youtube' %}active{% endif %}">YouTube</a>
-                <a href="/history" class="nav-link {% if request.endpoint == 'history' %}active{% endif %}">History</a>
+                <a href="{{ url_for('main.index') }}" class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}">Home</a>
+                <a href="{{ url_for('main.transcript') }}" class="nav-link {% if request.endpoint == 'main.transcript' %}active{% endif %}">Transcribe</a>
+                <a href="{{ url_for('main.youtube') }}" class="nav-link {% if request.endpoint == 'main.youtube' %}active{% endif %}">YouTube</a>
+                <a href="{{ url_for('main.history') }}" class="nav-link {% if request.endpoint == 'main.history' %}active{% endif %}">History</a>
             </div>
         </div>
     </nav>
 
     <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
     </div>
 
