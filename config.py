@@ -11,7 +11,7 @@ class Config:
     UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
     STORAGE_PATH = os.getenv('STORAGE_PATH', 'data')
     MODEL_PATH = os.getenv('MODEL_PATH', 'models')
-    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16MB default
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', '16777216'))  # 16MB default
     ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS', 'mp3,wav,ogg,mp4,m4a,mpeg,webm').split(','))
     
     # GPU Configuration
