@@ -18,16 +18,18 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
-    login_manager.login_view = 'main.index'
+    login_manager.login_view = 'auth.login'
 
     # Register blueprints
     from .routes import bp as main_bp
     from .api.transcription import api as transcription_api
     from .api.youtube import youtube_api
+    from .routes.auth import auth
     
     app.register_blueprint(main_bp)
     app.register_blueprint(transcription_api, url_prefix='/api/transcription')
     app.register_blueprint(youtube_api, url_prefix='/api/youtube')
+    app.register_blueprint(auth, url_prefix='/auth')
 
     # Create necessary directories
     os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
