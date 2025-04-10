@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}YouTube Transcription - AudioInk{% endblock %}
+
+{% block additional_styles %}
+.youtube-form {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-group input[type="url"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.button:hover {
+    background-color: #1565c0;
+}
+
+.button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.progress-container {
+    margin-top: 1rem;
+    display: none;
+}
+
+.progress-bar {
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary-color);
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    margin-top: 0.5rem;
+    color: #666;
+}
+
+.error {
+    color: var(--secondary-color);
+    margin-top: 0.5rem;
+    display: none;
+}
+{% endblock %}
+
+{% block content %}
+<div class="youtube-form">
+    <h1>Transcribe YouTube Video</h1>
+    <p>Enter a YouTube video URL to transcribe its audio content.</p>
+
+    <form id="youtubeForm" onsubmit="handleSubmit(event)">
+        <div class="form-group">
+            <label for="videoUrl">YouTube Video URL</label>
+            <input type="url" id="videoUrl" name="videoUrl" required
+                   placeholder="https://www.youtube.com/watch?v=...">
+        </div>
+
+        <button type="submit" class="button">
+            <span class="material-icons">podcasts</span>
+            Start Transcription
+        </button>
+    </form>
+
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">Downloading video...</div>
+    </div>
+
+    <div class="error" id="error"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function handleSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const videoUrl = form.videoUrl.value;
+    const progressContainer = document.getElementById('progressContainer');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const error = document.getElementById('error');
+
+    try {
+        // Show progress
+        progressContainer.style.display = 'block';
+        error.style.display = 'none';
+        form.querySelector('button').disabled = true;
+
+        // Start transcription
+        const response = await fetch('/api/youtube/transcribe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: videoUrl })
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to transcribe video');
+        }
+
+        // Redirect to the transcription view page
+        window.location.href = `/transcriptions/${data.id}/view`;
+
+    } catch (err) {
+        error.textContent = err.message;
+        error.style.display = 'block';
+        progressContainer.style.display = 'none';
+    } finally {
+        form.querySelector('button').disabled = false;
+    }
+}
+</script>
+{% endblock %} 
