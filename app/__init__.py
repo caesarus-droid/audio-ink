@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from config import config
@@ -24,6 +24,11 @@ def create_app(config_name='default'):
     os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
     os.makedirs(app.config.get('STORAGE_PATH', 'storage'), exist_ok=True)
     os.makedirs(app.config.get('MODEL_PATH', 'models'), exist_ok=True)
+
+    # Root route
+    @app.route('/')
+    def index():
+        return render_template('index.html')
 
     # Health check endpoint
     @app.route('/health')
