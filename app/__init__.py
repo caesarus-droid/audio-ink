@@ -18,7 +18,9 @@ def create_app(config_name='default'):
 
     # Register blueprints
     from .api.transcription import api as transcription_api
+    from .api.youtube import youtube_api
     app.register_blueprint(transcription_api, url_prefix='/api')
+    app.register_blueprint(youtube_api, url_prefix='/api')
 
     # Create necessary directories
     os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
@@ -29,6 +31,21 @@ def create_app(config_name='default'):
     @app.route('/')
     def index():
         return render_template('index.html')
+
+    # Transcribe route
+    @app.route('/transcribe')
+    def transcribe():
+        return render_template('index.html')
+
+    # YouTube route
+    @app.route('/youtube')
+    def youtube():
+        return render_template('youtube.html')
+
+    # History route
+    @app.route('/history')
+    def history():
+        return render_template('history.html')
 
     # Health check endpoint
     @app.route('/health')
