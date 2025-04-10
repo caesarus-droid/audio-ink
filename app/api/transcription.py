@@ -9,6 +9,10 @@ import time
 import docx
 from docx.shared import Pt
 from io import BytesIO
+from pathlib import Path
+import tempfile
+from .. import db
+from datetime import datetime
 
 api = Blueprint('transcription_api', __name__)
 
@@ -82,6 +86,91 @@ def transcribe_audio(audio_path: str) -> Dict[str, Any]:
             "language": "en"
         }
 
+def get_whisper_model(use_gpu=True):
+    """Get Whisper model with appropriate device configuration"""
+    try:
+        if use_gpu and torch.cuda.is_available():
+            device = "cuda"
+            current_app.logger.info("Using GPU for transcription")
+        else:
+            device = "cpu"
+            current_app.logger.info("Using CPU for transcription")
+        
+        model = whisper.load_model("large-v3", device=device)
+        return model
+    except Exception as e:
+        current_app.logger.error(f"Error loading Whisper model: {e}")
+        return None
+
+@api.route('/transcribe', methods=['POST'])
+def transcribe():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    # Get user preference for GPU usage
+    use_gpu = request.form.get('use_gpu', 'true').lower() == 'true'
+    
+    try:
+        # Save the uploaded file temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as temp_file:
+            file.save(temp_file.name)
+            temp_path = temp_file.name
+        
+        # Get the model with appropriate device configuration
+        model = get_whisper_model(use_gpu)
+        if model is None:
+            return jsonify({'error': 'Failed to load transcription model'}), 500
+        
+        # Perform transcription
+        result = model.transcribe(temp_path)
+        
+        # Create transcription record
+        transcription = Transcription(
+            filename=file.filename,
+            text=result['text'],
+            created_at=datetime.utcnow()
+        )
+        db.session.add(transcription)
+        db.session.commit()
+        
+        # Clean up temporary file
+        os.unlink(temp_path)
+        
+        return jsonify({
+            'id': transcription.id,
+            'text': result['text'],
+            'filename': file.filename,
+            'created_at': transcription.created_at.isoformat()
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Transcription error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api.route('/transcriptions', methods=['GET'])
+def get_transcriptions():
+    transcriptions = Transcription.query.order_by(Transcription.created_at.desc()).all()
+    return jsonify([{
+        'id': t.id,
+        'filename': t.filename,
+        'text': t.text,
+        'created_at': t.created_at.isoformat()
+    } for t in transcriptions])
+
+@api.route('/transcriptions/<int:id>', methods=['GET'])
+def get_transcription(id):
+    transcription = Transcription.query.get_or_404(id)
+    return jsonify({
+        'id': transcription.id,
+        'filename': transcription.filename,
+        'text': transcription.text,
+        'created_at': transcription.created_at.isoformat()
+    })
+
 @api.route('/transcriptions', methods=['POST'])
 def create_transcription():
     """Create a new transcription task."""
@@ -116,15 +205,6 @@ def create_transcription():
     
     except Exception as e:
         return jsonify({'error': f'Error uploading file: {str(e)}'}), 500
-
-@api.route('/transcriptions/<transcription_id>', methods=['GET'])
-def get_transcription(transcription_id: str):
-    """Get transcription status and result."""
-    transcription = Transcription.find_by_id(current_app.config['STORAGE_PATH'], transcription_id)
-    if not transcription:
-        return jsonify({'error': 'Transcription not found'}), 404
-    
-    return jsonify(transcription.to_dict())
 
 @api.route('/transcriptions/<transcription_id>/process', methods=['POST'])
 def process_transcription(transcription_id: str):
@@ -217,4 +297,20 @@ def download_transcription(transcription_id: str):
     
     except Exception as e:
         current_app.logger.error(f"Error creating Word document: {str(e)}")
-        return jsonify({'error': f'Error creating Word document: {str(e)}'}), 500 
+        return jsonify({'error': f'Error creating Word document: {str(e)}'}), 500
+
+@api.route('/gpu-status', methods=['GET'])
+def gpu_status():
+    """Check if GPU is available for transcription"""
+    try:
+        gpu_available = torch.cuda.is_available()
+        return jsonify({
+            'gpu_available': gpu_available,
+            'device_name': torch.cuda.get_device_name(0) if gpu_available else None
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error checking GPU status: {e}")
+        return jsonify({
+            'gpu_available': False,
+            'error': str(e)
+        }) 

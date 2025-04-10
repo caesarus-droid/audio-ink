@@ -247,6 +247,107 @@
             color: var(--warning-color);
             margin-right: 0.5rem;
         }
+
+        .settings {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .settings h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .status.success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            display: block;
+        }
+
+        .status.error {
+            background-color: #ffebee;
+            color: #c62828;
+            display: block;
+        }
+
+        .transcription-list {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .transcription-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .transcription-item:last-child {
+            border-bottom: none;
+        }
+
+        .transcription-item h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .transcription-item p {
+            margin: 0;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -273,6 +374,17 @@
                 </div>
             </div>
             {% endif %}
+
+            <div class="settings">
+                <h3>Transcription Settings</h3>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label class="switch">
+                        <input type="checkbox" id="useGpu" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span>Use GPU for faster transcription (if available)</span>
+                </div>
+            </div>
 
             <div class="step-indicator">
                 <div class="step active" id="step1">
@@ -326,6 +438,13 @@
         </div>
     </div>
 
+    <div id="status" class="status"></div>
+
+    <div class="transcription-list" id="transcriptionList">
+        <h3>Recent Transcriptions</h3>
+        <!-- Transcriptions will be loaded here -->
+    </div>
+
     <script>
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
@@ -338,6 +457,9 @@
         const processingDetails = document.getElementById('processingDetails');
         const steps = document.querySelectorAll('.step');
         const stepContents = document.querySelectorAll('.step-content');
+        const statusDiv = document.getElementById('status');
+        const transcriptionList = document.getElementById('transcriptionList');
+        const useGpuCheckbox = document.getElementById('useGpu');
 
         let currentStep = 1;
         let processingInterval;
@@ -400,6 +522,7 @@
         async function uploadFile(file) {
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('use_gpu', useGpuCheckbox.checked);
 
             updateStep(2);
             progressContainer.style.display = 'block';
@@ -440,6 +563,9 @@
                     Processed on ${deviceType} in ${result.processing_time.toFixed(2)} seconds
                 `;
                 
+                statusDiv.className = 'status success';
+                statusDiv.textContent = 'Transcription completed successfully!';
+                loadTranscriptions();
             } catch (err) {
                 clearInterval(processingInterval);
                 showError(err.message);
@@ -504,6 +630,38 @@
             const files = dt.files;
             handleFiles({ target: { files: files } });
         }
+
+        // Check GPU availability
+        fetch('/api/gpu-status')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.gpu_available) {
+                    useGpuCheckbox.checked = false;
+                    useGpuCheckbox.disabled = true;
+                    document.querySelector('.switch').style.opacity = '0.5';
+                }
+            });
+
+        function loadTranscriptions() {
+            fetch('/api/transcriptions')
+                .then(response => response.json())
+                .then(transcriptions => {
+                    transcriptionList.innerHTML = '<h3>Recent Transcriptions</h3>';
+                    transcriptions.forEach(t => {
+                        const div = document.createElement('div');
+                        div.className = 'transcription-item';
+                        div.innerHTML = `
+                            <h4>${t.filename}</h4>
+                            <p>${new Date(t.created_at).toLocaleString()}</p>
+                            <p>${t.text.substring(0, 100)}...</p>
+                        `;
+                        transcriptionList.appendChild(div);
+                    });
+                });
+        }
+
+        // Load transcriptions on page load
+        loadTranscriptions();
     </script>
 </body>
 </html> 

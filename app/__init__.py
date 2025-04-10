@@ -17,13 +17,13 @@ def create_app(config_name='default'):
     migrate.init_app(app, db)
 
     # Register blueprints
-    from api.transcription import api as transcription_api
+    from .api.transcription import api as transcription_api
     app.register_blueprint(transcription_api, url_prefix='/api')
 
     # Create necessary directories
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    os.makedirs(app.config['STORAGE_PATH'], exist_ok=True)
-    os.makedirs(app.config['MODEL_PATH'], exist_ok=True)
+    os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
+    os.makedirs(app.config.get('STORAGE_PATH', 'storage'), exist_ok=True)
+    os.makedirs(app.config.get('MODEL_PATH', 'models'), exist_ok=True)
 
     # Health check endpoint
     @app.route('/health')
