@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Transcription History - AudioInk{% endblock %}
+
+{% block additional_styles %}
+.history-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.transcription-list {
+    margin-top: 1rem;
+}
+
+.transcription-item {
+    border-bottom: 1px solid #eee;
+    padding: 1.5rem 0;
+}
+
+.transcription-item:last-child {
+    border-bottom: none;
+}
+
+.transcription-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.transcription-title {
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+.transcription-meta {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.transcription-preview {
+    color: #333;
+    margin: 1rem 0;
+    line-height: 1.5;
+}
+
+.transcription-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.action-button {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.action-button:hover {
+    background-color: rgba(25, 118, 210, 0.1);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 0;
+    color: #666;
+}
+
+.empty-state .material-icons {
+    font-size: 48px;
+    color: #ccc;
+    margin-bottom: 1rem;
+}
+
+.filters {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.filter-button {
+    background: none;
+    border: 1px solid #ddd;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.filter-button.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <h1>Transcription History</h1>
+
+    <div class="filters">
+        <button class="filter-button active" data-status="all">All</button>
+        <button class="filter-button" data-status="completed">Completed</button>
+        <button class="filter-button" data-status="pending">Pending</button>
+        <button class="filter-button" data-status="failed">Failed</button>
+    </div>
+
+    <div class="transcription-list" id="transcriptionList">
+        <!-- Transcriptions will be loaded here -->
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let activeFilter = 'all';
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+}
+
+function truncateText(text, maxLength = 200) {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+}
+
+async function loadTranscriptions() {
+    try {
+        const response = await fetch(`/api/transcriptions?status=${activeFilter}`);
+        const transcriptions = await response.json();
+        const container = document.getElementById('transcriptionList');
+
+        if (transcriptions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons">history</span>
+                    <h3>No transcriptions found</h3>
+                    <p>Your transcription history will appear here</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = transcriptions.map(t => `
+            <div class="transcription-item">
+                <div class="transcription-header">
+                    <div class="transcription-title">${t.file_name}</div>
+                    <div class="transcription-meta">
+                        ${formatDate(t.created_at)} • ${t.status}
+                    </div>
+                </div>
+                <div class="transcription-preview">
+                    ${truncateText(t.text || 'No text available')}
+                </div>
+                <div class="transcription-actions">
+                    <button class="action-button" onclick="viewTranscription('${t.id}')">
+                        <span class="material-icons">visibility</span>
+                        View
+                    </button>
+                    <button class="action-button" onclick="downloadTranscription('${t.id}')">
+                        <span class="material-icons">download</span>
+                        Download
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading transcriptions:', error);
+    }
+}
+
+function viewTranscription(id) {
+    window.location.href = `/transcriptions/${id}/view`;
+}
+
+async function downloadTranscription(id) {
+    try {
+        const response = await fetch(`/api/transcriptions/${id}/download`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) throw new Error('Failed to download transcription');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `transcript_${id}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+    } catch (error) {
+        console.error('Error downloading transcription:', error);
+        alert('Failed to download transcription');
+    }
+}
+
+// Set up filter buttons
+document.querySelectorAll('.filter-button').forEach(button => {
+    button.addEventListener('click', () => {
+        document.querySelectorAll('.filter-button').forEach(b => b.classList.remove('active'));
+        button.classList.add('active');
+        activeFilter = button.dataset.status;
+        loadTranscriptions();
+    });
+});
+
+// Load transcriptions on page load
+loadTranscriptions();
+</script>
+{% endblock %} 
